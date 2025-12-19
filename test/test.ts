@@ -1,20 +1,21 @@
-import { Mango, MangoTable, MangoType } from "./mango.js";
+import { Mango } from "../src/mango.js";
 
-const mango:Mango = new Mango();
+const mango = new Mango();
 
-await mango.connect({
-    host:"localhost",
-    user:"root",
-    password:"",
-    database:"post"
+try {
+    await mango.connect({
+        host:"localhost",
+        user:"root",
+        password:"",
+        database:"post"
+    });    
+    console.log("Connected to DB");
+} catch (error) {
+    console.log(error);
+    console.log("Error connecting to db");
+}
 
-});
-
-// const User:MangoTable = mango.createTable("user",{
-//     id:mango.types().int().autoIncrement().primaryKey(),
-//     username:mango.types().text().unique()
-// });
-
-
-
+const table = mango.selectTable("post");
+console.log(table.getName());
+table.truncate().execute();
 

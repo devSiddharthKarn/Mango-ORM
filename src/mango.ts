@@ -22,7 +22,7 @@ class MangoType {
     return this;
   }
 
-  char(length:number) {
+  char(length: number) {
     this.query += " CHAR ";
     return this;
   }
@@ -52,7 +52,7 @@ class MangoType {
     return this;
   }
 
-  tinyInt(length:number) {
+  tinyInt(length: number) {
     this.query += ` TINYINT(${length})`;
     return this;
   }
@@ -67,7 +67,7 @@ class MangoType {
     return this;
   }
 
-  varchar(length:number) {
+  varchar(length: number) {
     this.query += ` VARCHAR(${length}) `;
     return this;
   }
@@ -92,10 +92,10 @@ class MangoTable {
   private tableName: string;
   private tableFields: string[];
 
-  private query:string = "";
+  private query: string = "";
 
-  constructor(db:sql.Connection, name = "", fields = [""]) {
-    if (fields.length == 0) {
+  constructor(db: sql.Connection, name:string, fields: string[] = []) {
+    if (fields.length == 0 || (fields.length == 1 && fields[0] === "")) {
       throw new Error("no fields provided for table " + name);
     }
 
@@ -200,9 +200,8 @@ class MangoTable {
       .map((v) => (typeof v === "string" ? `'${v}'` : v))
       .join(", ");
 
-    this.query += `INSERT INTO ${
-      this.tableName
-    } (${columns}) VALUES (${values})`;
+    this.query += `INSERT INTO ${this.tableName
+      } (${columns}) VALUES (${values})`;
     // console.log(query);
     return this;
   }
@@ -232,7 +231,14 @@ class MangoTable {
     return this.tableName;
   }
 
-  where(logic = "username >") {}
+  truncate(){
+    this.query = " TRUNCATE TABLE "+ this.tableName;
+    return this;
+  }
+    
+    
+
+  where(logic = "username >") { }
 
   getQuery() {
     return this.query;
@@ -247,7 +253,7 @@ class Mango {
   private db!: sql.Connection;
   private tables: MangoTable[] = [];
 
-  private performQuery(query:string, supplies: any[] = []) {
+  private performQuery(query: string, supplies: any[] = []) {
     return new Promise((resolve, reject) => {
       this.db.query(query, supplies, (err, result) => {
         if (err) reject(err);
@@ -268,7 +274,7 @@ class Mango {
       this.db.connect((err) => {
         if (err) reject(err);
         else {
-          console.log("Connected to db");
+          // console.log("Connected to db");
           resolve();
         }
       });
@@ -279,7 +285,7 @@ class Mango {
     const tableNames = tables.map((row: any) => Object.values(row)[0] as string);
 
     for (const name of tableNames) {
-    //   console.log("Table name:", name);
+      //   console.log("Table name:", name);
       const columns = await this.performQuery(
         "SELECT column_name FROM information_schema.columns WHERE table_schema=? AND table_name=?",
         [database, name]
@@ -288,17 +294,17 @@ class Mango {
       const column_names = columns.map((row: any) => row.column_name as string);
 
 
-      
+
       //   console.log(columns);
 
-        // console.log(column_names);
+      // console.log(column_names);
 
       this.tables.push(new MangoTable(this.db, name, column_names));
 
-      //   console.log("PUSHED Table:",name,columns);
+        console.log("PUSHED Table:",name,columns);
     }
 
-    return this; // optional, but clean
+    return this;
   }
 
   types() {
@@ -319,7 +325,7 @@ class Mango {
     return this.tables;
   }
 
-  createTable(name: string, fields: Record<string, MangoType> = {}) {
+  createTable(name: string, fields: Record<string, MangoType>) {
     let query = "CREATE TABLE " + name + "( \n";
 
     const fieldEnteries = Object.entries(fields);
@@ -350,9 +356,33 @@ class Mango {
 
     return table;
   }
+
+  dropTable(name: string) {
+    console.log("Total tables:", this.tables.length);
+    console.log("Looking for table:", name);
+    
+    for (let i = 0; i < this.tables.length; i++) {
+      console.log(`Table ${i}:`, this.tables[i]);
+      console.log(`Table ${i} name:`, this.tables[i]?.getName());
+      
+      if (this.tables[i].getName() === name) {
+        console.log("Found table:", this.tables[i].getName());
+        let query = "DROP TABLE " + name;
+        
+        this.performQuery(query, []);
+        this.tables.splice(i, 1);
+        
+        return;
+      }
+    }
+    
+    // throw new Error("Table not found: " + name);
+  }
+
+
 }
 
-export { Mango,MangoType,MangoTable };
+export { Mango, MangoType, MangoTable };
 
 
 

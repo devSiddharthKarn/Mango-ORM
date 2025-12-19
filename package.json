@@ -1,0 +1,23 @@
+{
+  "name": "mango",
+  "version": "1.0.0",
+  "description": "TypeScript MySQL ORM",
+  "main": "dist/src/mango.js",
+  "types": "dist/src/mango.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "tsc && node dist/test/test.js"
+  },
+  "keywords": ["mysql", "orm", "typescript"],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.25.0",
+  "dependencies": {
+    "@types/mysql": "^2.15.27",
+    "mysql": "^2.18.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
