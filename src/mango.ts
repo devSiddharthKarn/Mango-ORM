@@ -87,14 +87,49 @@ class MangoType {
   }
 }
 
-class MangoTable {
+
+class MangoQuery {
+  private db: sql.Connection
+  public query: string = "";
+  public supplies = [] as any;
+
+  public config(db: sql.Connection) {
+    this.db = db;
+  }
+
+  execute<T>() {
+    return new Promise<T>((resolve, reject) => {
+      this.db.query(this.query, this.supplies, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+      this.query = "";
+    })
+  }
+
+  customQuery<T>(query: string, supplies: any[]) {
+    return new Promise<T>((resolve, reject) => {
+      this.db.query(query, supplies, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+
+      })
+    })
+  }
+};
+
+
+class MangoTable<T> {
   private db: sql.Connection;
   private tableName: string;
   private tableFields: string[];
 
-  private query: string = "";
 
-  constructor(db: sql.Connection, name:string, fields: string[] = []) {
+  // private query: string = "";
+  // private querySupplies = [] as any;
+  private query: MangoQuery = new MangoQuery();
+
+  constructor(db: sql.Connection, name: string, fields: string[] = []) {
     if (fields.length == 0 || (fields.length == 1 && fields[0] === "")) {
       throw new Error("no fields provided for table " + name);
     }
@@ -102,95 +137,92 @@ class MangoTable {
     this.db = db;
     this.tableName = name;
 
-    // console.log("GOT fields:",fields);
 
     this.tableFields = [...fields];
 
-    // console.log(this.tableFields);
-    // console.log(this.tableName, this.tableFields);
+    this.query = new MangoQuery();
+    this.query.config(db);
+
   }
 
   addColumns(fields = {}) {
-    this.query = "ALTER TABLE " + this.tableName + "\n";
+    this.query.query += "ALTER TABLE " + this.tableName + "\n";
 
     const entries = Object.entries(fields);
 
-    this.query += entries
+    this.query.query += entries
       .map(([key, value]) => "ADD COLUMN " + key + " " + (value as MangoType).getQuery())
       .join(",\n");
 
+    this.query.query += ";\n"
+
     entries.forEach(([key]) => this.tableFields.push(key));
-
-    // console.log(this.query, this.tableFields);
-
     return this;
   }
 
-  removeColumns(fields = [""]) {
-    this.query = "ALTER TABLE " + this.tableName + "\n";
 
-    this.query += fields.map((field) => "DROP COLUMN " + field).join(",\n");
+
+  removeColumns(fields = [""]) {
+    this.query.query += "ALTER TABLE " + this.tableName + "\n";
+    this.query.query += fields.map((field) => "DROP COLUMN " + field).join(",\n");
+    this.query.query += ";\n";
 
     this.tableFields = this.tableFields.filter(
       (value) => !fields.includes(value)
     );
 
-    // console.log(this.query, this.tableFields);
 
     return this;
   }
 
   selectAll() {
-    this.query = `SELECT * from ${this.tableName}`;
+    this.query.query = `SELECT * from ${this.tableName}`;
 
     return this;
-    // console.log(this.query);
   }
 
   selectColumns(columns = [""]) {
-    this.query = `SELECT `;
+    this.query.query = `SELECT `;
     columns.forEach((column) => {
-      this.query += " " + column + " ";
+      this.query.query += " " + column + " ";
     });
 
-    this.query += ` from ${this.tableName} `;
+    this.query.query += ` from ${this.tableName} `;
 
-    // console.log(query);
 
     return this;
   }
 
   selectDistinctColumns(columns = [""]) {
-    this.query = `SELECT DISTINCT `;
+    this.query.query = `SELECT DISTINCT `;
     columns.forEach((column) => {
-      this.query += " " + column + " ";
+      this.query.query += " " + column + " ";
     });
 
-    this.query += ` from ${this.tableName}`;
+    this.query.query += ` from ${this.tableName}`;
 
-    // console.log(query);
 
     return this;
   }
 
   orderBy(columnName = "") {
-    this.query += ` ORDER BY ${columnName} `;
+    this.query.query += ` ORDER BY ${columnName} `;
 
     return this;
   }
 
   sort(sort = 1) {
-    this.query += " " + (sort > 0 ? "ASC" : "DESC") + " ";
+    this.query.query += " " + (sort > 0 ? "ASC" : "DESC") + " ";
     return this;
   }
 
   limit(length = 0) {
-    this.query += ` LIMIT ${length} `;
+    this.query.query += ` LIMIT ${length} `;
     return this;
   }
 
   offset(length = 0) {
-    this.query += ` OFFSET ${length} `;
+    this.query.query += ` OFFSET ${length} `;
     return this;
   }
 
@@ -200,17 +232,16 @@ class MangoTable {
       .map((v) => (typeof v === "string" ? `'${v}'` : v))
       .join(", ");
 
-    this.query += `INSERT INTO ${this.tableName
+    this.query.query += `INSERT INTO ${this.tableName
       } (${columns}) VALUES (${values})`;
-    // console.log(query);
     return this;
   }
 
   insertMany(fields = [], data = [[]]) {
     const columns = fields.join(", ");
-    this.query = `INSERT INTO ${this.tableName} (${columns}) VALUES \n`;
+    this.query.query = `INSERT INTO ${this.tableName} (${columns}) VALUES \n`;
 
-    this.query += data
+    this.query.query += data
       .map(
         (row) =>
           "(" +
@@ -219,7 +250,6 @@ class MangoTable {
       )
       .join(",\n");
 
-    // console.log(query);
     return this;
   }
 
@@ -231,12 +261,12 @@ class MangoTable {
     return this.tableName;
   }
 
-  truncate(){
-    this.query = " TRUNCATE TABLE "+ this.tableName;
+  truncate() {
+    this.query.query = " TRUNCATE TABLE " + this.tableName;
     return this;
   }
-    
-    
+
+
 
   where(logic = "username >") { }
 
@@ -245,22 +275,15 @@ class MangoTable {
   }
 
   execute() {
-    return this.db.query(this.query, []);
+    return this.query.execute<T[]>();
   }
 }
 
 class Mango {
-  private db!: sql.Connection;
-  private tables: MangoTable[] = [];
+  private db: sql.Connection;
+  private tables: MangoTable<any>[] = [];
 
-  private performQuery(query: string, supplies: any[] = []) {
-    return new Promise((resolve, reject) => {
-      this.db.query(query, supplies, (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
-      });
-    });
-  }
+  private query: MangoQuery = new MangoQuery();
 
   async connect({ host, user, password, database }: { host: string, user: string, password: string, database: string }) {
     this.db = sql.createConnection({
@@ -268,25 +291,27 @@ class Mango {
       user,
       password,
       database,
+      // multipleStatements:true,
     });
 
     await new Promise<void>((resolve, reject) => {
       this.db.connect((err) => {
         if (err) reject(err);
         else {
-          // console.log("Connected to db");
           resolve();
         }
       });
     });
 
-    const tables = await this.performQuery("SHOW TABLES") as any[];
+    // Configure query with db connection BEFORE using it
+    this.query.config(this.db);
+
+    const tables = await this.query.customQuery("SHOW TABLES", []) as any[];
 
     const tableNames = tables.map((row: any) => Object.values(row)[0] as string);
 
     for (const name of tableNames) {
-      //   console.log("Table name:", name);
-      const columns = await this.performQuery(
+      const columns = await this.query.customQuery(
         "SELECT column_name FROM information_schema.columns WHERE table_schema=? AND table_name=?",
         [database, name]
       ) as any[];
@@ -294,14 +319,8 @@ class Mango {
       const column_names = columns.map((row: any) => row.column_name as string);
 
 
+      this.tables.push(new MangoTable<any>(this.db, name, column_names));
 
-      //   console.log(columns);
-
-      // console.log(column_names);
-
-      this.tables.push(new MangoTable(this.db, name, column_names));
-
-        console.log("PUSHED Table:",name,columns);
     }
 
     return this;
@@ -311,72 +330,67 @@ class Mango {
     return new MangoType();
   }
 
-  selectTable(name = "") {
+  selectTable<T = any>(name = ""): MangoTable<T> {
     for (const table of this.tables) {
       if (table.getName() == name) {
-        return table;
+        return table as MangoTable<T>;
       }
     }
-
     throw new Error("No any table found as " + name);
   }
+
 
   getTables() {
     return this.tables;
   }
 
-  createTable(name: string, fields: Record<string, MangoType>) {
-    let query = "CREATE TABLE " + name + "( \n";
+  createTable<T>(name: string, fields: Record<string, MangoType>) {
+    this.query.query = "CREATE TABLE " + name + "( \n";
 
     const fieldEnteries = Object.entries(fields);
 
-    let table = new MangoTable(this.db, name, [
+    let table = new MangoTable<T>(this.db, name, [
       ...fieldEnteries.map(([key, value], index) => {
         return key;
       }),
     ]);
 
     fieldEnteries.forEach(([key, value], index) => {
-      query += key + " " + (value as MangoType).getQuery();
+      this.query.query += key + " " + (value as MangoType).getQuery();
 
       if (index < fieldEnteries.length - 1) {
-        query += ", \n";
+        this.query.query += ", \n";
       }
     });
 
-    query += "\n)";
+    this.query.query += "\n)";
 
-    // console.log(query);
 
-    this.performQuery(query, []);
+    this.query.execute();
+    this.query.query = "";
 
     this.tables.push(table);
 
-    // console.log(table);
 
     return table;
   }
 
   dropTable(name: string) {
-    console.log("Total tables:", this.tables.length);
-    console.log("Looking for table:", name);
-    
+
+
     for (let i = 0; i < this.tables.length; i++) {
-      console.log(`Table ${i}:`, this.tables[i]);
-      console.log(`Table ${i} name:`, this.tables[i]?.getName());
-      
+
       if (this.tables[i].getName() === name) {
-        console.log("Found table:", this.tables[i].getName());
-        let query = "DROP TABLE " + name;
-        
-        this.performQuery(query, []);
+        this.query.query = "DROP TABLE " + name;
+
+        this.query.execute();
+        this.query.query = "";
         this.tables.splice(i, 1);
-        
+
         return;
       }
     }
-    
-    // throw new Error("Table not found: " + name);
+
   }
 
 

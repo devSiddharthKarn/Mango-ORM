@@ -1,6 +1,7 @@
 {
   "name": "mango",
   "version": "1.0.0",
+  "type": "module",
   "description": "TypeScript MySQL ORM",
   "main": "dist/src/mango.js",
   "types": "dist/src/mango.d.ts",
