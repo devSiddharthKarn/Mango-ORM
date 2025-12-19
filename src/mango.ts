@@ -89,11 +89,11 @@ class MangoType {
 
 
 class MangoQuery {
-  private db: sql.Connection
+  private db: sql.Pool
   public query: string = "";
   public supplies = [] as any;
 
-  public config(db: sql.Connection) {
+  public config(db: sql.Pool) {
     this.db = db;
   }
 
@@ -104,6 +104,7 @@ class MangoQuery {
         resolve(result);
       })
       this.query = "";
+      this.supplies = [];
     })
   }
 
@@ -120,7 +121,7 @@ class MangoQuery {
 
 
 class MangoTable<T> {
-  private db: sql.Connection;
+  private db: sql.Pool;
   private tableName: string;
   private tableFields: string[];
 
@@ -129,14 +130,19 @@ class MangoTable<T> {
   // private querySupplies = [] as any;
   private query: MangoQuery = new MangoQuery();
 
-  constructor(db: sql.Connection, name: string, fields: string[] = []) {
+  constructor(db: sql.Pool, name: string, fields: string[] = []) {
     if (fields.length == 0 || (fields.length == 1 && fields[0] === "")) {
       throw new Error("no fields provided for table " + name);
     }
 
     this.db = db;
-    this.tableName = name;
 
+
+    if (Array.from(name.split(" ")).length > 1) {
+      throw new Error("No spaces in table name allowed:");
+    }
+
+    this.tableName = name;
 
     this.tableFields = [...fields];
 
@@ -177,14 +183,19 @@ class MangoTable<T> {
 
   selectAll() {
     this.query.query = `SELECT * from ${this.tableName}`;
-
     return this;
   }
+
+
 
   selectColumns(columns = [""]) {
     this.query.query = `SELECT `;
     columns.forEach((column) => {
-      this.query.query += " " + column + " ";
+      if (this.tableFields.includes(column)) {
+        this.query.query += " " + column + " ";
+      } else {
+        throw new Error("Table field :" + column + " does not exists in table: " + this.tableName);
+      }
     });
 
     this.query.query += ` from ${this.tableName} `;
@@ -228,27 +239,45 @@ class MangoTable<T> {
 
   insertOne(data = {}) {
     const columns = Object.keys(data).join(", ");
-    const values = Object.values(data)
-      .map((v) => (typeof v === "string" ? `'${v}'` : v))
-      .join(", ");
+    const values = Object.values(data);
 
-    this.query.query += `INSERT INTO ${this.tableName
-      } (${columns}) VALUES (${values})`;
+
+    this.query.query += ` INSERT INTO ${this.tableName} (${columns}) VALUES `;
+    this.query.query += ` ( `;
+
+    for (let i = 0; i < values.length; i++) {
+      this.query.query += ` ? `;
+      if (i < values.length - 1) {
+        this.query.query += ' , ';
+      }
+
+      if (i == values.length - 1) {
+        this.query.query += ` ) `;
+      }
+    }
+
+    this.query.supplies = values;
+
+    // this.query.query += `INSERT INTO ${this.tableName
+    // } (${columns}) VALUES (${values})`;
+
     return this;
   }
 
+
+
   insertMany(fields = [], data = [[]]) {
     const columns = fields.join(", ");
-    this.query.query = `INSERT INTO ${this.tableName} (${columns}) VALUES \n`;
-
-    this.query.query += data
-      .map(
-        (row) =>
-          "(" +
-          row.map((v) => (typeof v === "string" ? `'${v}'` : v)).join(", ") +
-          ")"
-      )
-      .join(",\n");
+    
+    // generating placeholders for each row: (?, ?, ?), (?, ?, ?), .
+    const placeholders = data.map(row => 
+      `(${row.map(() => '?').join(', ')})`
+    ).join(', ');
+    
+    this.query.query = `INSERT INTO ${this.tableName} (${columns}) VALUES ${placeholders}`;
+    
+    // Flatten the data array for supplies
+    this.query.supplies = data.flat();
 
     return this;
   }
@@ -277,31 +306,42 @@ class MangoTable<T> {
   execute() {
     return this.query.execute<T[]>();
   }
+
+  customQuery<Type>(query: string, supplies: any[]) {
+    return this.query.customQuery<Type[]>(query, supplies);
+  }
 }
 
 class Mango {
-  private db: sql.Connection;
+  private db: sql.Pool;
   private tables: MangoTable<any>[] = [];
 
   private query: MangoQuery = new MangoQuery();
 
   async connect({ host, user, password, database }: { host: string, user: string, password: string, database: string }) {
-    this.db = sql.createConnection({
-      host,
-      user,
-      password,
-      database,
-      // multipleStatements:true,
-    });
+    // this.db = sql.createConnection({
+    //   host,
+    //   user,
+    //   password,
+    //   database,
+    //   // multipleStatements:true,
+    // });
 
-    await new Promise<void>((resolve, reject) => {
-      this.db.connect((err) => {
-        if (err) reject(err);
-        else {
-          resolve();
-        }
-      });
-    });
+    this.db = sql.createPool({
+      host: host,
+      user: user,
+      password: password,
+      database: database,
+    })
+
+    // await new Promise<void>((resolve, reject) => {
+    //   this.db.connect((err) => {
+    //     if (err) reject(err);
+    //     else {
+    //       resolve();
+    //     }
+    //   });
+    // });
 
     // Configure query with db connection BEFORE using it
     this.query.config(this.db);
@@ -326,6 +366,18 @@ class Mango {
     return this;
   }
 
+  async disconnect() {
+    return new Promise<void>((resolve, reject) => {
+      this.db.end((err) => {
+        if (err) reject(err);
+        else {
+          this.tables = [];
+          resolve();
+        }
+      })
+    })
+  }
+
   types() {
     return new MangoType();
   }
@@ -344,7 +396,7 @@ class Mango {
     return this.tables;
   }
 
-  createTable<T>(name: string, fields: Record<string, MangoType>) {
+  async createTable<T>(name: string, fields: Record<string, MangoType>) {
     this.query.query = "CREATE TABLE " + name + "( \n";
 
     const fieldEnteries = Object.entries(fields);
@@ -366,7 +418,7 @@ class Mango {
     this.query.query += "\n)";
 
 
-    this.query.execute();
+    await this.query.execute();
     this.query.query = "";
 
     this.tables.push(table);
@@ -375,7 +427,7 @@ class Mango {
     return table;
   }
 
-  dropTable(name: string) {
+  async dropTable(name: string) {
 
 
     for (let i = 0; i < this.tables.length; i++) {
@@ -383,7 +435,7 @@ class Mango {
       if (this.tables[i].getName() === name) {
         this.query.query = "DROP TABLE " + name;
 
-        this.query.execute();
+        await this.query.execute();
         this.query.query = "";
         this.tables.splice(i, 1);
 
@@ -391,6 +443,10 @@ class Mango {
       }
     }
 
+  }
+
+  customQuery<Type>(query: string, supplies: any[]) {
+    return this.query.customQuery<Type>(query, supplies);
   }
 
 
