@@ -157,7 +157,19 @@ class MangoTable<T> {
     const entries = Object.entries(fields);
 
     this.query.query += entries
-      .map(([key, value]) => "ADD COLUMN " + key + " " + (value as MangoType).getQuery())
+      .map(([key, value]) => {
+        let QUERY = " ADD COLUMN ";
+
+        if (Array.from(key.split(" ")).length > 1) {
+          throw new Error("Field/Column name cannot have spaces: " + key + " from table : " + this.tableName);
+        }
+
+        QUERY += (key + " ");
+
+        QUERY += " " + (value as MangoType).getQuery();
+
+        return QUERY;
+      })
       .join(",\n");
 
     this.query.query += ";\n"
@@ -169,8 +181,22 @@ class MangoTable<T> {
 
 
   removeColumns(fields = [""]) {
+
     this.query.query += "ALTER TABLE " + this.tableName + "\n";
-    this.query.query += fields.map((field) => "DROP COLUMN " + field).join(",\n");
+
+
+    this.query.query += fields.map((field) => {
+
+      let QUERY = ' DROP COLUMN ';
+
+      if (!this.tableFields.includes(field)) {
+        throw new Error("field/column : " + field + " not exist in table : " + this.tableName);
+      }
+
+      QUERY += field;
+
+      return QUERY;
+    }).join(",\n");
     this.query.query += ";\n";
 
     this.tableFields = this.tableFields.filter(
@@ -207,6 +233,9 @@ class MangoTable<T> {
   selectDistinctColumns(columns = [""]) {
     this.query.query = `SELECT DISTINCT `;
     columns.forEach((column) => {
+      if(!this.tableFields.includes(column)){
+        throw new Error("Field/Column : "+column+ " is not exist in table : "+this.tableName);
+      }
       this.query.query += " " + column + " ";
     });
 
@@ -217,6 +246,11 @@ class MangoTable<T> {
   }
 
   orderBy(columnName = "") {
+
+    if (!this.tableFields.includes(columnName)) {
+      throw new Error("Field/Column : " + columnName + " is not exist in table : " + this.tableName);
+    }
+
     this.query.query += ` ORDER BY ${columnName} `;
 
     return this;
@@ -227,12 +261,14 @@ class MangoTable<T> {
     return this;
   }
 
-  limit(length = 0) {
+  limit(length: number) {
+    if (length <= 0) return this;
     this.query.query += ` LIMIT ${length} `;
     return this;
   }
 
-  offset(length = 0) {
+  offset(length: number) {
+    if (length <= 0) return this;
     this.query.query += ` OFFSET ${length} `;
     return this;
   }
@@ -268,15 +304,14 @@ class MangoTable<T> {
 
   insertMany(fields = [], data = [[]]) {
     const columns = fields.join(", ");
-    
+
     // generating placeholders for each row: (?, ?, ?), (?, ?, ?), .
-    const placeholders = data.map(row => 
+    const placeholders = data.map(row =>
       `(${row.map(() => '?').join(', ')})`
     ).join(', ');
-    
+
     this.query.query = `INSERT INTO ${this.tableName} (${columns}) VALUES ${placeholders}`;
-    
-    // Flatten the data array for supplies
+
     this.query.supplies = data.flat();
 
     return this;
