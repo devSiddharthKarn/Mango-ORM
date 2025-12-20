@@ -214,7 +214,7 @@ class MangoTable<T> {
 
 
 
-  selectColumns(columns = [""]) {
+  selectColumns(columns :string[]) {
     this.query.query = `SELECT `;
     columns.forEach((column) => {
       if (this.tableFields.includes(column)) {
@@ -230,7 +230,7 @@ class MangoTable<T> {
     return this;
   }
 
-  selectDistinctColumns(columns = [""]) {
+  selectDistinctColumns(columns:string[]) {
     this.query.query = `SELECT DISTINCT `;
     columns.forEach((column) => {
       if (!this.tableFields.includes(column)) {
@@ -399,6 +399,21 @@ class MangoTable<T> {
       this.query.supplies.push(value);
     });
 
+    return this;
+  }
+
+
+  join(
+    type: 'INNER' | 'LEFT' | 'RIGHT' | 'FULL',
+    table: string,
+    condition: { left: string; operator: string; right: string }
+  ) {
+    const validTypes = ['INNER', 'LEFT', 'RIGHT', 'FULL'];
+    if (!validTypes.includes(type)) {
+      throw new Error(`Invalid join type: ${type}`);
+    }
+
+    this.query.query += ` ${type} JOIN ${table} ON ${condition.left} ${condition.operator} ${condition.right} `;
     return this;
   }
 
