@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "tsc && node dist/test/test.js"
+    "test": "tsc && node dist/test/test.js",
+    "test:ops": "tsc && node dist/test/test-operations.js"
   },
   "keywords": ["mysql", "orm", "typescript"],
   "author": "",

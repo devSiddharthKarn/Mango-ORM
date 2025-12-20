@@ -233,8 +233,8 @@ class MangoTable<T> {
   selectDistinctColumns(columns = [""]) {
     this.query.query = `SELECT DISTINCT `;
     columns.forEach((column) => {
-      if(!this.tableFields.includes(column)){
-        throw new Error("Field/Column : "+column+ " is not exist in table : "+this.tableName);
+      if (!this.tableFields.includes(column)) {
+        throw new Error("Field/Column : " + column + " is not exist in table : " + this.tableName);
       }
       this.query.query += " " + column + " ";
     });
@@ -332,7 +332,110 @@ class MangoTable<T> {
 
 
 
-  where(logic = "username >") { }
+  where(field: string, operator: string, value: any) {
+    if (!this.tableFields.includes(field)) {
+      throw new Error(`Field/Column: ${field} does not exist in table: ${this.tableName}`);
+    }
+
+    const validOperators = ['=', '!=', '<>', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'IS', 'IS NOT'];
+    if (!validOperators.includes(operator.toUpperCase())) {
+      throw new Error(`Invalid operator: ${operator}`);
+    }
+
+    this.query.query += ` WHERE ${field} ${operator} ? `;
+    this.query.supplies.push(value);
+    return this;
+  }
+
+  and(field: string, operator: string, value: any) {
+    if (!this.tableFields.includes(field)) {
+      throw new Error(`Field/Column: ${field} does not exist in table: ${this.tableName}`);
+    }
+
+    const validOperators = ['=', '!=', '<>', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'IS', 'IS NOT'];
+    if (!validOperators.includes(operator.toUpperCase())) {
+      throw new Error(`Invalid operator: ${operator}`);
+    }
+
+    this.query.query += ` AND ${field} ${operator} ? `;
+    this.query.supplies.push(value);
+    return this;
+  }
+
+  or(field: string, operator: string, value: any) {
+    if (!this.tableFields.includes(field)) {
+      throw new Error(`Field/Column: ${field} does not exist in table: ${this.tableName}`);
+    }
+
+    const validOperators = ['=', '!=', '<>', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'IS', 'IS NOT'];
+    if (!validOperators.includes(operator.toUpperCase())) {
+      throw new Error(`Invalid operator: ${operator}`);
+    }
+
+    this.query.query += ` OR ${field} ${operator} ? `;
+    this.query.supplies.push(value);
+    return this;
+  }
+
+  update(data: Record<string, any>) {
+    const entries = Object.entries(data);
+
+    if (entries.length === 0) {
+      throw new Error("No data provided for update");
+    }
+
+    this.query.query = `UPDATE ${this.tableName} SET `;
+
+    entries.forEach(([key, value], index) => {
+      // Validate field exists
+      if (!this.tableFields.includes(key)) {
+        throw new Error(`Field/Column: ${key} does not exist in table: ${this.tableName}`);
+      }
+
+      this.query.query += `${key} = ?`;
+      if (index < entries.length - 1) {
+        this.query.query += ", ";
+      }
+      this.query.supplies.push(value);
+    });
+
+    return this;
+  }
+
+  delete() {
+    this.query.query = `DELETE FROM ${this.tableName}`;
+    return this;
+  }
+
+  whereIn(field: string, values: any[]) {
+    if (!this.tableFields.includes(field)) {
+      throw new Error(`Field/Column: ${field} does not exist in table: ${this.tableName}`);
+    }
+
+    if (!Array.isArray(values) || values.length === 0) {
+      throw new Error("whereIn requires a non-empty array of values");
+    }
+
+    const placeholders = values.map(() => '?').join(', ');
+    this.query.query += ` WHERE ${field} IN (${placeholders}) `;
+    this.query.supplies.push(...values);
+    return this;
+  }
+
+  whereNotIn(field: string, values: any[]) {
+    if (!this.tableFields.includes(field)) {
+      throw new Error(`Field/Column: ${field} does not exist in table: ${this.tableName}`);
+    }
+
+    if (!Array.isArray(values) || values.length === 0) {
+      throw new Error("whereNotIn requires a non-empty array of values");
+    }
+
+    const placeholders = values.map(() => '?').join(', ');
+    this.query.query += ` WHERE ${field} NOT IN (${placeholders}) `;
+    this.query.supplies.push(...values);
+    return this;
+  }
 
   getQuery() {
     return this.query;
