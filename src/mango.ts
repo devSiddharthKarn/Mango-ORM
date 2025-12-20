@@ -709,15 +709,6 @@ class MangoTable<T> {
     return this.query;
   }
 
-  rollback() {
-    this.query.query += "\n ROLLBACK \n";
-    return this;
-  }
-
-  commit() {
-    this.query.query += "\n COMMIT \n";
-    return this;
-  }
 
   execute() {
     return this.query.execute<T[]>();
@@ -750,13 +741,29 @@ class Mango {
   private tables: MangoTable<any>[] = []; // Cached table instances
   private query: MangoQuery = new MangoQuery();
 
-  async connect({ host, user, password, database }: { host: string, user: string, password: string, database: string }) {
+  async connect({
+    host,
+    user,
+    password,
+    database,
+    connectionLimit = 10,
+    waitForConnection = true,
+    queueLimit = 0,
+    connectTimeout = 10000,
+    charset = "utf8mb4",
+  }) {
 
     this.db = sql.createPool({
       host: host,
       user: user,
       password: password,
       database: database,
+
+      connectionLimit: connectionLimit,
+      waitForConnections: waitForConnection,
+      queueLimit: queueLimit,
+      connectTimeout: connectTimeout,
+      charset: charset,
     });
 
     this.query.config(this.db);
@@ -817,7 +824,7 @@ class Mango {
    */
   selectTable<T = any>(name = ""): MangoTable<T> {
     for (const table of this.tables) {
-      if (table.getName() == name) {
+      if (table.getName() == name.toLowerCase()) {
         return table as MangoTable<T>;
       }
     }
@@ -837,7 +844,7 @@ class Mango {
 
     const fieldEnteries = Object.entries(fields);
 
-    let table = new MangoTable<T>(this.db, name, [
+    let table = new MangoTable<T>(this.db, name.toLowerCase(), [
       ...fieldEnteries.map(([key, value], index) => {
         return key;
       }),
@@ -888,7 +895,6 @@ class Mango {
 
 }
 
-// Export main classes for public use
 export { Mango, MangoType, MangoTable };
 
 
