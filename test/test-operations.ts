@@ -1,12 +1,18 @@
 import { Mango } from "../src/mango.js";
 
 const mango = new Mango();
-await mango.connect({
-    host:"localhost",
-    user:"root",
-    password:"",
-    database:"post"
-});
+
+try{
+
+    await mango.connect({
+        host:"localhost",
+        user:"root",
+        password:"",
+        database:"post"
+    });
+}catch(error){
+    console.log(error);
+}
 
 console.log("Mango is connected");
 
