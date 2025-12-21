@@ -216,7 +216,7 @@ class MangoTable<T> {
     this.tableFields = [...fields]; // Clone to prevent external mutations
 
     // Initialize query executor
-    this.query = new MangoQuery();
+    // this.query = new MangoQuery();
     this.query.config(db);
   }
 
@@ -822,7 +822,7 @@ class Mango {
    * interface User { id: number; name: string; email: string }
    * const users = mango.selectTable<User>('users');
    */
-  selectTable<T = any>(name = ""): MangoTable<T> {
+  selectTable<T = any>(name: string): MangoTable<T> {
     for (const table of this.tables) {
       if (table.getName() == name.toLowerCase()) {
         return table as MangoTable<T>;
@@ -836,7 +836,7 @@ class Mango {
    * @returns Array of all MangoTable instances
    */
   getTables() {
-    return this.tables;
+    return [...this.tables];
   }
 
   async createTable<T>(name: string, fields: Record<string, MangoType>) {

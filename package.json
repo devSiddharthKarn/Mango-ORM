@@ -1,19 +1,40 @@
 {
-  "name": "mango",
+  "name": "mango-orm",
   "version": "1.0.0",
   "type": "module",
-  "description": "TypeScript MySQL ORM",
+  "description": "A lightweight, type-safe MySQL ORM for Node.js and TypeScript",
   "main": "dist/src/mango.js",
   "types": "dist/src/mango.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "tsc && node dist/test/test.js",
-    "test:ops": "tsc && node dist/test/test-operations.js"
+    "test:ops": "tsc && node dist/test/test-operations.js",
+    "prepublishOnly": "pnpm build"
   },
-  "keywords": ["mysql", "orm", "typescript"],
-  "author": "",
+  "files": [
+    "dist/src",
+    "README.md"
+  ],
+  "keywords": [
+    "mysql",
+    "orm",
+    "typescript",
+    "database",
+    "sql",
+    "type-safe",
+    "query-builder"
+  ],
+  "author": "Siddharth Karn siddharth2062.karn@gmail.com (https://github.com/devSiddharthKarn)",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devSiddharthKarn/Mango.git"
+  },
+  "bugs": {
+    "url": "https://github.com/devSiddharthKarn/Mango/issues"
+  },
+  "homepage": "https://github.com/devSiddharthKarn/Mango#readme",
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "@types/mysql": "^2.15.27",
@@ -21,5 +42,8 @@
   },
   "devDependencies": {
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
