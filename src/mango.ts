@@ -212,7 +212,7 @@ class MangoTable<T> {
       throw new Error("No spaces in table name allowed:");
     }
 
-    this.tableName = name;
+    this.tableName = name.toLowerCase();
     this.tableFields = [...fields]; // Clone to prevent external mutations
 
     // Initialize query executor
@@ -871,21 +871,16 @@ class Mango {
   }
 
   async dropTable(name: string) {
-
-
+    // Find and remove from tables array first
     for (let i = 0; i < this.tables.length; i++) {
-
-      if (this.tables[i].getName() === name) {
-        this.query.query = "DROP TABLE " + name;
-
+      if (this.tables[i].getName() === name.toLowerCase()) {
+        this.query.query = "DROP TABLE " + name.toLowerCase();
         await this.query.execute();
         this.query.query = "";
         this.tables.splice(i, 1);
-
         return;
       }
     }
-
   }
 
   customQuery<Type>(query: string, supplies: any[]) {
