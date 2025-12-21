@@ -20,9 +20,12 @@ try {
 
 // create one or select one
 
-await mango.dropTable("Users");
+if(mango.haveTable("Users")){
+    await mango.dropTable("Users");
+    console.log("Table dropped");
+}
 
-console.log("Table dropped");
+
 
 const Users = await mango.createTable("Users",{
     id:mango.types().int().autoIncrement().primaryKey().notNull(),
@@ -46,7 +49,7 @@ console.log(await Users.getName());
 const users = await Users.selectColumns(["username", "email", "password"]).execute();
 
 
-await mango.dropTable("users");
+// await mango.dropTable("users");
 
 console.log("table dropped");
 

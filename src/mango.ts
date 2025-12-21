@@ -883,6 +883,17 @@ class Mango {
     }
   }
 
+
+  haveTable(name:string):boolean{
+    for(const table of this.tables){
+      if(table.getName()===name.toLowerCase()){
+        return true;
+      }
+    }
+    return false;
+  }
+
+
   customQuery<Type>(query: string, supplies: any[]) {
     return this.query.customQuery<Type>(query, supplies);
   }
