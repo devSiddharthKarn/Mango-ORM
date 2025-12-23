@@ -1,6 +1,6 @@
 {
   "name": "mango-orm",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "type": "module",
   "description": "A lightweight, type-safe MySQL ORM for Node.js and TypeScript with database migrations",
   "main": "dist/src/mango.js",
