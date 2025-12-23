@@ -33,14 +33,15 @@ switch (command) {
 
 function showHelp() {
     console.log(chalk.bold("Usage:"));
-    console.log("  npm run migration:generate <name> [outputDir]\n");
+    console.log("  mango generate <name> [outputDir]");
+    console.log("  npx mango generate <name> [outputDir]\n");
     
     console.log(chalk.bold("Commands:"));
     console.log(chalk.cyan("  generate, g") + "    Generate a new migration file");
     console.log(chalk.cyan("  help, -h") + "        Show this help message\n");
     
     console.log(chalk.bold("Examples:"));
-    console.log("  npm run migration:generate create_users_table");
-    console.log("  npm run migration:generate add_email_column");
-    console.log("  npm run migration:generate create_posts_table ./db/migrations\n");
+    console.log("  mango generate create_users_table");
+    console.log("  mango generate add_email_column");
+    console.log("  mango generate create_posts_table ./db/migrations\n");
 }

@@ -6,17 +6,11 @@
   "main": "dist/src/mango.js",
   "types": "dist/src/mango.d.ts",
   "bin": {
-    "mango": "dist/src/cli.js",
-    "mango-migration": "dist/src/cli.js"
+    "mango": "./dist/src/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "tsc && node dist/test/test.js",
-    "test:ops": "tsc && node dist/test/test-operations.js",
-    "prepublishOnly": "pnpm build",
-    "migration:generate": "tsc && node dist/src/cli.js generate",
-    "migration:help": "tsc && node dist/src/cli.js help"
+    "prepublishOnly": "pnpm build"
   },
   "files": [
     "dist/src",

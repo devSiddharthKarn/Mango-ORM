@@ -4,5 +4,7 @@ dist/
 .vscode/
 migrations/
 test/
+images/
 *.tgz
 *.log
+.DS_Store
