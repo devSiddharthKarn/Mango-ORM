@@ -900,7 +900,88 @@ Schema type builder for column definitions.
 
 ---
 
-## 🔐 Security
+## � Database Migrations
+
+Mango includes a powerful migration system to version and manage database schema changes with color-coded console feedback.
+
+### Creating Migration Files
+
+Generate a new migration file:
+
+```bash
+npm run migration:generate create_users_table
+```
+
+This creates a timestamped migration file like `migrations/1734912000000_create_users_table.ts`:
+
+```typescript
+import { IMangoMigrationType, Mango } from "mango-orm";
+
+export const create_users_table: IMangoMigrationType = {
+    name: "create_users_table",
+    timestamp: 1734912000000,
+    
+    up: async (mango: Mango) => {
+        await mango.createTable("users", {
+            id: mango.types().int().primaryKey().autoIncrement(),
+            username: mango.types().varchar(255).notNull().unique(),
+            email: mango.types().varchar(255).notNull(),
+            created_at: mango.types().timeStamp().default("CURRENT_TIMESTAMP")
+        });
+        console.log("✓ Users table created");
+    },
+    
+    down: async (mango: Mango) => {
+        await mango.dropTable("users");
+        console.log("✓ Users table dropped");
+    }
+};
+```
+
+### Running Migrations
+
+Create a migration runner script:
+
+```typescript
+import { Mango, MangoMigration } from "mango-orm";
+import { create_users_table } from "./migrations/1734912000000_create_users_table.js";
+
+const mango = new Mango();
+await mango.connect({ /* config */ });
+
+const migration = new MangoMigration(mango);
+migration.add(create_users_table);
+
+// Check migration status
+await migration.status();
+
+// Run next pending migration
+await migration.migrateUp();
+
+// Run all pending migrations
+await migration.migrateUpToLatest();
+
+// Rollback last migration
+await migration.migrateDown();
+
+// Rollback all migrations
+await migration.migrateDownToOldest();
+```
+
+### Migration Console Output
+
+```
+=== Migration Status ===
+
+  ✓ Executed: create_users_table
+  ⦿ Pending:  add_posts_table
+
+Total: 2 | Executed: 1 | Pending: 1
+```
+
+---
+
+## �🔐 Security
 
 Mango ORM is built with security in mind:
 
@@ -982,9 +1063,9 @@ await mango.connect({
 
 While Mango is functional, some features are still in development:
 
+- ✅ **Migration System**: Database schema migrations with version tracking
 - ⏳ **No Transaction Support**: BEGIN/COMMIT/ROLLBACK not fully implemented
 - ⏳ **Limited JOIN Support**: Basic joins work but complex joins need testing
-- ⏳ **No Migration System**: Schema versioning and migrations coming soon
 - ⏳ **No Relations**: ORM-style relations (hasMany, belongsTo) not yet available
 - ⏳ **No Query Caching**: Results are not cached (may add in future)
 - ⏳ **No Connection Retry**: Failed connections don't auto-retry
@@ -994,17 +1075,17 @@ While Mango is functional, some features are still in development:
 
 ## 🗺️ Roadmap
 
-### Short Term (v0.3.0)
+### Short Term (v1.1.0)
 - [x] WHERE clause support
 - [x] UPDATE operations
 - [x] DELETE operations
 - [x] Comprehensive documentation
+- [x] Migration system with CLI
 - [ ] Transaction support (BEGIN, COMMIT, ROLLBACK)
 - [ ] Better error messages with stack traces
 - [ ] Connection pool configuration options
 
-### Medium Term (v0.4.0)
-- [ ] Migration system
+### Medium Term (v1.2.0)
 - [ ] Seed data functionality
 - [ ] Query result caching
 - [ ] Batch operation optimization

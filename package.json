@@ -1,8 +1,8 @@
 {
   "name": "mango-orm",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "type": "module",
-  "description": "A lightweight, type-safe MySQL ORM for Node.js and TypeScript",
+  "description": "A lightweight, type-safe MySQL ORM for Node.js and TypeScript with database migrations",
   "main": "dist/src/mango.js",
   "types": "dist/src/mango.d.ts",
   "scripts": {
@@ -10,11 +10,14 @@
     "dev": "tsc --watch",
     "test": "tsc && node dist/test/test.js",
     "test:ops": "tsc && node dist/test/test-operations.js",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "migration:generate": "tsc && node dist/src/cli.js generate",
+    "migration:help": "tsc && node dist/src/cli.js help"
   },
   "files": [
     "dist/src",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "mysql",
@@ -23,7 +26,12 @@
     "database",
     "sql",
     "type-safe",
-    "query-builder"
+    "query-builder",
+    "migrations",
+    "schema-management",
+    "mysql-orm",
+    "nodejs",
+    "fluent-api"
   ],
   "author": "Siddharth Karn siddharth2062.karn@gmail.com (https://github.com/devSiddharthKarn)",
   "license": "ISC",
@@ -38,6 +46,7 @@
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "@types/mysql": "^2.15.27",
+    "chalk": "^5.6.2",
     "mysql": "^2.18.1"
   },
   "devDependencies": {

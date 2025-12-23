@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 .vscode/
+migrations/
+test/
+*.tgz
+*.log

@@ -2,6 +2,7 @@
   Requires sql for connection 
 */
 import * as sql from "mysql";
+import chalk from "chalk";
 
 /**
  * MangoType - Schema builder for defining table column types
@@ -130,7 +131,7 @@ class MangoType {
  * Automatically resets state after execution to prevent query contamination
  */
 class MangoQuery {
-  private db: sql.Pool;
+  private db!: sql.Pool;
   public query: string = "";
   public supplies = [] as any; // Prepared statement parameters
 
@@ -737,7 +738,7 @@ class MangoTable<T> {
  * const results = await users.selectAll().execute();
  */
 class Mango {
-  private db: sql.Pool;
+  private db!: sql.Pool;
   private tables: MangoTable<any>[] = []; // Cached table instances
   private query: MangoQuery = new MangoQuery();
 
@@ -840,7 +841,7 @@ class Mango {
   }
 
   async createTable<T>(name: string, fields: Record<string, MangoType>) {
-    this.query.query = "CREATE TABLE " + name + "( \n";
+    this.query.query = "CREATE TABLE " + name.toLowerCase() + "( \n";
 
     const fieldEnteries = Object.entries(fields);
 
@@ -860,6 +861,7 @@ class Mango {
 
     this.query.query += "\n)";
 
+    // console.log(this.query.query);
 
     await this.query.execute();
     this.query.query = "";
@@ -884,9 +886,9 @@ class Mango {
   }
 
 
-  haveTable(name:string):boolean{
-    for(const table of this.tables){
-      if(table.getName()===name.toLowerCase()){
+  haveTable(name: string): boolean {
+    for (const table of this.tables) {
+      if (table.getName() === name.toLowerCase()) {
         return true;
       }
     }
@@ -901,7 +903,311 @@ class Mango {
 
 }
 
+
+
+interface IMigration {
+  id: number,
+  name: string,
+  timestamp: number,
+  executed_at: number,
+}
+
+
+interface IMangoMigrationType {
+  name: string,
+  timestamp: number,
+  up: (mango: Mango) => Promise<void>,
+  down: (mango: Mango) => Promise<void>
+}
+
+
+
+class MangoMigration {
+  private mango: Mango;
+  private mango_migration_table_name = "mango_migrations"
+  private migrations: IMangoMigrationType[] = [];
+
+
+
+  async initialize() {
+    try {
+
+
+      if (!this.mango.haveTable(this.mango_migration_table_name)) {
+        await this.mango.createTable<IMigration>(this.mango_migration_table_name, {
+          id: this.mango.types().int().primaryKey().notNull().autoIncrement(),
+          name: this.mango.types().text().notNull().unique(),
+          timestamp: this.mango.types().bigInt().notNull(),
+          executed_at: this.mango.types().bigInt().notNull(),
+        })
+      }
+    } catch (error: any) {
+
+      console.log("Error encountered while initializing mangoMigration");
+      throw error;
+
+    }
+  }
+
+
+  constructor(mango: Mango) {
+    this.mango = mango;
+    this.initialize();
+  }
+
+  async addOneMigrationToDB(migration: IMangoMigrationType) {
+
+    try {
+      await this.mango.selectTable(this.mango_migration_table_name).insertOne({
+        name: migration.name,
+        timestamp: migration.timestamp,
+        executed_at: Date.now()
+      }).execute();
+      console.log(chalk.dim(`   → Recorded in database`));
+    } catch (error: any) {
+      console.error(chalk.red(`✗ Error:`) + ` Failed to record migration in DB:`, error.message);
+      throw error;
+    }
+  }
+
+  async addManyMigrationToDB(migration: IMangoMigrationType[]) {
+    try {
+
+      await this.mango.selectTable(this.mango_migration_table_name).insertMany(
+        ["name", "timestamp", "executed_at"],
+
+        migration.map((m) => ([
+          m.name,
+          m.timestamp,
+          Date.now()
+        ]))
+
+      ).execute();
+
+      console.log(chalk.dim(`   → Recorded ${migration.length} migrations in database`));
+    } catch (error: any) {
+      console.error(chalk.red(`✗ Error:`) + ` Failed to record migrations in DB:`, error.message);
+      throw error;
+    }
+  }
+
+  async deleteOneMigrationFromDB(migration: IMangoMigrationType) {
+    try {
+      await this.mango.selectTable(this.mango_migration_table_name).delete().where("name", "=", migration.name).execute();
+
+      console.log(chalk.dim(`   → Removed from database`));
+    } catch (error) {
+      console.error(chalk.red(`✗ Error:`) + ` Failed to delete migration from DB:`, error);
+      throw error;
+    }
+  }
+
+  async deleteManyMigrationFromDB(migrations: IMangoMigrationType[]) {
+
+    const names: string[] = [...migrations].map((m) => m.name);
+
+    try {
+
+      await this.mango.selectTable(this.mango_migration_table_name).delete().whereIn("name", names).execute();
+
+      console.log(chalk.dim(`   → Removed ${migrations.length} migrations from database`));
+    } catch (error: any) {
+      console.error(chalk.red(`✗ Error:`) + ` Failed to delete migrations from DB:`, error.message);
+      throw error;
+    }
+
+  }
+
+
+
+  add(migration: IMangoMigrationType): MangoMigration {
+    this.migrations.push(migration);
+    return this;
+  }
+
+
+  async getExecutedMigrations(): Promise<string[]> {
+    const migration: IMigration[] = await this.mango.selectTable(this.mango_migration_table_name).selectAll().orderBy("timestamp").sort(1).execute();
+
+    return migration.map((m) => m.name);
+  }
+
+  async migrateUp(): Promise<void> {
+
+    await this.initialize();
+
+    const executed: string[] = await this.getExecutedMigrations();
+
+    const sorted: IMangoMigrationType[] = [...this.migrations].sort((a, b) => a.timestamp - b.timestamp)
+
+    const pending: IMangoMigrationType = sorted.find(m => !executed.includes(m.name));
+
+    if (!pending) {
+      console.log(chalk.yellow("⚠") + " No pending migrations to execute");
+      return;
+    }
+
+    console.log(chalk.cyan("→") + ` Running migration: ${chalk.bold(pending.name)}`);
+    
+    try {
+      await pending.up(this.mango);
+      console.log(chalk.green("✓") + ` Migration completed: ${chalk.bold(pending.name)}`);
+      await this.addOneMigrationToDB(pending);
+    } catch (error: any) {
+      console.error(chalk.red("✗") + ` Migration failed: ${chalk.bold(pending.name)}`);
+      console.error(chalk.dim(`   Error: ${error.message}`));
+      throw error;
+    }
+
+  }
+
+  async migrateUpToLatest(): Promise<void> {
+
+    await this.initialize();
+    const executed: string[] = await this.getExecutedMigrations();
+
+    const sorted: IMangoMigrationType[] = [...this.migrations].sort((a, b) => a.timestamp - b.timestamp);
+
+    const pending = sorted.filter(m => !executed.includes(m.name));
+    
+    if (pending.length === 0) {
+      console.log(chalk.yellow("⚠") + " No pending migrations to execute");
+      return;
+    }
+
+    console.log(chalk.cyan("→") + ` Running ${pending.length} pending migration(s)...\n`);
+
+    for (const migration of pending) {
+      console.log(chalk.cyan("  →") + ` ${chalk.bold(migration.name)}`);
+      
+      try {
+        await migration.up(this.mango);
+        await this.addOneMigrationToDB(migration);
+        console.log(chalk.green("  ✓") + ` Completed\n`);
+      } catch (error: any) {
+        console.error(chalk.red("  ✗") + ` Failed`);
+        console.error(chalk.dim(`     Error: ${error.message}`));
+        throw error;
+      }
+    }
+
+    console.log(chalk.green("✓") + ` All migrations completed successfully`);
+  }
+
+  async migrateDown(): Promise<void> {
+
+    await this.initialize();
+
+    const executed: string[] = await this.getExecutedMigrations();
+
+    const sorted: IMangoMigrationType[] = [...this.migrations].sort((a, b) => a.timestamp - b.timestamp);
+
+    if (executed.length === 0) {
+      console.log(chalk.yellow("⚠") + " No migrations to rollback");
+      return;
+    }
+
+    const oldMigrationName: string = executed[executed.length - 1];
+
+    const migration = sorted.find(m => m.name === oldMigrationName);
+
+    if (!migration) {
+      throw new Error(`Migration not found: ${oldMigrationName}`);
+    }
+
+    console.log(chalk.magenta("←") + ` Rolling back: ${chalk.bold(migration.name)}`);
+    
+    try {
+      await migration.down(this.mango);
+      await this.deleteOneMigrationFromDB(migration);
+      console.log(chalk.green("✓") + ` Rollback completed`);
+    } catch (error: any) {
+      console.error(chalk.red("✗") + ` Rollback failed: ${chalk.bold(migration.name)}`);
+      console.error(chalk.dim(`   Error: ${error.message}`));
+      throw error;
+    }
+
+    return;
+  }
+
+
+  async migrateDownToOldest(): Promise<void> {
+
+    await this.initialize();
+
+    const executed: string[] = await this.getExecutedMigrations();
+
+    const sorted: IMangoMigrationType[] = [...this.migrations].sort((a, b) => a.timestamp - b.timestamp);
+
+    if (executed.length === 0) {
+      console.log(chalk.yellow("⚠") + " No migrations to rollback");
+      return;
+    }
+
+    console.log(chalk.magenta("←") + ` Rolling back ${executed.length} migration(s)...\n`);
+
+    for (const migrationName of executed.reverse()) {
+      const migration = sorted.find(migration => migration.name === migrationName);
+
+
+      if (!migration) {
+        throw new Error(`Migration not found: ${migrationName}`);
+      }
+
+      console.log(chalk.magenta("  ←") + ` ${chalk.bold(migration.name)}`);
+      
+      try {
+        await migration.down(this.mango);
+        await this.deleteOneMigrationFromDB(migration);
+        console.log(chalk.green("  ✓") + ` Completed\n`);
+      } catch (error: any) {
+        console.error(chalk.red("  ✗") + ` Failed`);
+        console.error(chalk.dim(`     Error: ${error.message}`));
+        throw error;
+      }
+    }
+
+    console.log(chalk.green("✓") + ` All migrations rolled back successfully`);
+    return;
+  }
+
+  async status() {
+    await this.initialize();
+    const executedMigrations: string[] = await this.getExecutedMigrations();
+
+    const sortedMigrations = [...this.migrations].sort((a, b) => a.timestamp - b.timestamp);
+
+    console.log(chalk.bold.cyan("\n=== Migration Status ==="));
+    console.log();
+
+    if (sortedMigrations.length === 0) {
+      console.log(chalk.dim("  No migrations registered"));
+    } else {
+      for (const migration of sortedMigrations) {
+        if (executedMigrations.includes(migration.name)) {
+          console.log(chalk.green("  ✓ Executed:") + ` ${chalk.cyan(migration.name)}`);
+        } else {
+          console.log(chalk.yellow("  ⧗ Pending: ") + ` ${chalk.cyan(migration.name)}`);
+        }
+      }
+    }
+
+    console.log();
+    console.log(
+      chalk.bold("Total:") + ` ${this.migrations.length} | ` +
+      chalk.green("Executed:") + ` ${executedMigrations.length} | ` +
+      chalk.yellow("Pending:") + ` ${this.migrations.length - executedMigrations.length}`
+    );
+    console.log();
+  }
+
+
+
+};
+
+
 export { Mango, MangoType, MangoTable };
+export { MangoMigration, IMangoMigrationType }
 
 
 
