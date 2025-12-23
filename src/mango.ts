@@ -1206,8 +1206,8 @@ class MangoMigration {
 };
 
 
-export { Mango, MangoType, MangoTable };
-export { MangoMigration, IMangoMigrationType }
+export { Mango, MangoType, MangoTable , MangoMigration, IMangoMigrationType };
+
 
 
 
