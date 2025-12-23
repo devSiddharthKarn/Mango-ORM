@@ -929,7 +929,7 @@ class MangoMigration {
 
 
 
-  async initialize() {
+  private async initialize() {
     try {
 
 
@@ -955,7 +955,7 @@ class MangoMigration {
     this.initialize();
   }
 
-  async addOneMigrationToDB(migration: IMangoMigrationType) {
+  private async addOneMigrationToDB(migration: IMangoMigrationType) {
 
     try {
       await this.mango.selectTable(this.mango_migration_table_name).insertOne({
@@ -970,7 +970,7 @@ class MangoMigration {
     }
   }
 
-  async addManyMigrationToDB(migration: IMangoMigrationType[]) {
+  private async addManyMigrationToDB(migration: IMangoMigrationType[]) {
     try {
 
       await this.mango.selectTable(this.mango_migration_table_name).insertMany(
@@ -991,7 +991,7 @@ class MangoMigration {
     }
   }
 
-  async deleteOneMigrationFromDB(migration: IMangoMigrationType) {
+  private async deleteOneMigrationFromDB(migration: IMangoMigrationType) {
     try {
       await this.mango.selectTable(this.mango_migration_table_name).delete().where("name", "=", migration.name).execute();
 
@@ -1002,7 +1002,7 @@ class MangoMigration {
     }
   }
 
-  async deleteManyMigrationFromDB(migrations: IMangoMigrationType[]) {
+  private async deleteManyMigrationFromDB(migrations: IMangoMigrationType[]) {
 
     const names: string[] = [...migrations].map((m) => m.name);
 
@@ -1026,7 +1026,7 @@ class MangoMigration {
   }
 
 
-  async getExecutedMigrations(): Promise<string[]> {
+  private async getExecutedMigrations(): Promise<string[]> {
     const migration: IMigration[] = await this.mango.selectTable(this.mango_migration_table_name).selectAll().orderBy("timestamp").sort(1).execute();
 
     return migration.map((m) => m.name);
@@ -1048,7 +1048,7 @@ class MangoMigration {
     }
 
     console.log(chalk.cyan("→") + ` Running migration: ${chalk.bold(pending.name)}`);
-    
+
     try {
       await pending.up(this.mango);
       console.log(chalk.green("✓") + ` Migration completed: ${chalk.bold(pending.name)}`);
@@ -1069,7 +1069,7 @@ class MangoMigration {
     const sorted: IMangoMigrationType[] = [...this.migrations].sort((a, b) => a.timestamp - b.timestamp);
 
     const pending = sorted.filter(m => !executed.includes(m.name));
-    
+
     if (pending.length === 0) {
       console.log(chalk.yellow("⚠") + " No pending migrations to execute");
       return;
@@ -1079,7 +1079,7 @@ class MangoMigration {
 
     for (const migration of pending) {
       console.log(chalk.cyan("  →") + ` ${chalk.bold(migration.name)}`);
-      
+
       try {
         await migration.up(this.mango);
         await this.addOneMigrationToDB(migration);
@@ -1116,7 +1116,7 @@ class MangoMigration {
     }
 
     console.log(chalk.magenta("←") + ` Rolling back: ${chalk.bold(migration.name)}`);
-    
+
     try {
       await migration.down(this.mango);
       await this.deleteOneMigrationFromDB(migration);
@@ -1155,7 +1155,7 @@ class MangoMigration {
       }
 
       console.log(chalk.magenta("  ←") + ` ${chalk.bold(migration.name)}`);
-      
+
       try {
         await migration.down(this.mango);
         await this.deleteOneMigrationFromDB(migration);
@@ -1206,7 +1206,7 @@ class MangoMigration {
 };
 
 
-export { Mango, MangoType, MangoTable , MangoMigration, IMangoMigrationType };
+export { Mango, MangoType, MangoTable, MangoMigration, IMangoMigrationType };
 
 
 
