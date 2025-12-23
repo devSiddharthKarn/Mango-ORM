@@ -5,6 +5,10 @@
   "description": "A lightweight, type-safe MySQL ORM for Node.js and TypeScript with database migrations",
   "main": "dist/src/mango.js",
   "types": "dist/src/mango.d.ts",
+  "bin": {
+    "mango": "dist/src/cli.js",
+    "mango-migration": "dist/src/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
