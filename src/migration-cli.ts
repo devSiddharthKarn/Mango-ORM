@@ -6,7 +6,7 @@ const generateMangoMigrationFile = (migrationFilename: string, outputDir: string
     const timestamp = Date.now();
     const filepath = path.join(outputDir, `${timestamp}_${migrationFilename}.ts`);
 
-    const template = `import { IMangoMigrationType, Mango } from "mango-orm;
+    const template = `import { IMangoMigrationType, Mango } from "mango-orm";
 
 export const ${migrationFilename}: IMangoMigrationType = {
     name: "${migrationFilename}",
