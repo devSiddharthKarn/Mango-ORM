@@ -118,6 +118,18 @@ class MangoType {
     return this;
   }
 
+  enum(types:string[]){
+    this.query+= " ENUM ( ";
+    for(let i=0;i<types.length;i++){
+      this.query += ` '${types[i]}' `;
+      if(i<types.length-1){
+        this.query+=" , ";
+      }
+    }
+    this.query+=" ) ";
+    return this;
+  }
+
   /** Get the built SQL column definition */
   getQuery() {
     return this.query;
