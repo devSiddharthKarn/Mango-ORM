@@ -118,21 +118,35 @@ class MangoType {
     return this;
   }
 
-  enum(types:string[]){
-    this.query+= " ENUM ( ";
-    for(let i=0;i<types.length;i++){
+  enum(types: string[]) {
+    this.query += " ENUM ( ";
+    for (let i = 0; i < types.length; i++) {
       this.query += ` '${types[i]}' `;
-      if(i<types.length-1){
-        this.query+=" , ";
+      if (i < types.length - 1) {
+        this.query += " , ";
       }
     }
-    this.query+=" ) ";
+    this.query += " ) ";
     return this;
   }
 
   /** Get the built SQL column definition */
   getQuery() {
     return this.query;
+  }
+
+  byDefault(value: string | number | boolean) {
+    this.query += " DEFAULT ";
+
+    if (typeof value === 'string') {
+      const escaped = value.replace(/'/g, "''");
+      this.query += `'${escaped}'`;
+    } else {
+      this.query += `${value}`;
+    }
+
+    this.query += " ";
+    return this;
   }
 }
 

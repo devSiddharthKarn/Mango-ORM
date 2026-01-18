@@ -6,7 +6,7 @@
   "main": "dist/mango.js",
   "types": "dist/mango.d.ts",
   "bin": {
-    "mango": "./dist/cli.js"
+    "mango": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
